@@ -67,6 +67,9 @@ UKF::UKF() {
   ///* Sigma point spreading parameter
   lambda_ = 3 - n_aug_;
 
+  ///* Augmented sigma point prediction matrix
+  Xsig_pred_ = MatrixXd(n_x_, 2*n_aug_+1);
+
   ///* Weights of sigma points
   for (int i = 1; i < n_aug_*2+1; i++) {
     double weight = 1 / (2 * (lambda_ + n_aug_));
@@ -159,8 +162,7 @@ void UKF::Prediction(double delta_t) {
   }
 
   // * Predict Sigma Points
-  Xsig_pred = MatrixXd(n_x_, 2*n_aug_+1);
-  Xsig_pred = Xsig_aug.block(0,0,5,15);
+  Xsig_pred_ = Xsig_aug.block(0,0,5,15);
 
   for (int i = 0; i < (2*n_aug_+1); i++) {
     double px = Xsig_aug(0, i);
@@ -173,20 +175,37 @@ void UKF::Prediction(double delta_t) {
     double r_noise = Xsig_aug(6, i);
 
     if (rho_dot > 0.001) {
-      Xsig_pred(0, i) = px + (vel/rho_dot)*(sin(rho + rho_dot*delta_t) - sin(rho)) + 0.5*(delta_t*delta_t)*cos(rho)*v_noise;
-      Xsig_pred(1, i) = py + (vel/rho_dot)*(-cos(rho + rho_dot*delta_t) + cos(rho)) + 0.5*(delta_t*delta_t)*sin(rho)*v_noise;
-      Xsig_pred(2, i) = vel + 0 + delta_t*v_noise;
-      Xsig_pred(3, i) = rho + rho_dot*delta_t + 0.5*(delta_t*delta_t)*r_noise;
-      Xsig_pred(4, i) = rho_dot + 0 + delta_t*r_noise;
+      Xsig_pred_(0, i) = px + (vel/rho_dot)*(sin(rho + rho_dot*delta_t) - sin(rho)) + 0.5*(delta_t*delta_t)*cos(rho)*v_noise;
+      Xsig_pred_(1, i) = py + (vel/rho_dot)*(-cos(rho + rho_dot*delta_t) + cos(rho)) + 0.5*(delta_t*delta_t)*sin(rho)*v_noise;
+      Xsig_pred_(2, i) = vel + 0 + delta_t*v_noise;
+      Xsig_pred_(3, i) = rho + rho_dot*delta_t + 0.5*(delta_t*delta_t)*r_noise;
+      Xsig_pred_(4, i) = rho_dot + 0 + delta_t*r_noise;
     } else {
-      Xsig_pred(0, i) = px + vel*cos(rho)*delta_t + 0.5*(delta_t*delta_t)*cos(rho)*v_noise;
-      Xsig_pred(1, i) = py + vel*sin(rad)*delta_t + 0.5*(delta_t*delta_t)*sin(rho)*v_noise;
-      Xsig_pred(2, i) = vel + 0 + delta_t*v_noise;
-      Xsig_pred(3, i) = rho + rho*delta_t + 0.5*(delta_t*delta_t)*r_noise;
-      Xsig_pred(4, i) = rho_dot + 0 + delta_t*r_noise;
+      Xsig_pred_(0, i) = px + vel*cos(rho)*delta_t + 0.5*(delta_t*delta_t)*cos(rho)*v_noise;
+      Xsig_pred_(1, i) = py + vel*sin(rad)*delta_t + 0.5*(delta_t*delta_t)*sin(rho)*v_noise;
+      Xsig_pred_(2, i) = vel + 0 + delta_t*v_noise;
+      Xsig_pred_(3, i) = rho + rho*delta_t + 0.5*(delta_t*delta_t)*r_noise;
+      Xsig_pred_(4, i) = rho_dot + 0 + delta_t*r_noise;
     }
   }
 
+  // * Predict Mean & Covariance
+
+  //predict state mean
+  for (int i = 0; i < n_aug_*2+1; i++) {
+    x_ = x_ + weights_(i)*Xsig_pred_.col(i)
+  }
+
+  //predict state covariance
+  for (int i = 0; i < n_aug_*2+1; i++) {
+    VectorXd x_diff = Xsig_pred_.col(i) - x;
+
+    // Normalize the angle -M_PI < angle < M_PI
+    while (x_diff(3) > M_PI) x_diff(3) -= 2*M_PI;
+    while (x_diff(3) < -M_PI) x_diff(3) += 2*M_PI;
+
+    P_ = P_ + weights_(i) * x_diff * x_diff.transpose();
+  }
 }
 
 /**
