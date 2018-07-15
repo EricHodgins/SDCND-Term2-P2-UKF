@@ -11,6 +11,12 @@ using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
 class UKF {
+private:
+  std::ofstream NIS_RADAR_FILE_;
+  std::ofstream NIS_LIDAR_FILE_;
+  int K_timestep_;
+  int J_timestep_;
+
 public:
 
   ///* initially set to false, set to true in first call of ProcessMeasurement
