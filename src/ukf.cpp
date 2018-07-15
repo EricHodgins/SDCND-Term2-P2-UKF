@@ -351,16 +351,14 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
   //residual
   VectorXd z_diff = z - z_pred;
 
-  //calculate NIS
-  double NIS_Value = z_diff.transpose() * S.inverse() * z_diff;
-  J_timestep_ += 1;
-  NIS_LIDAR_FILE_ << NIS_Value << "\t" << J_timestep_ << endl;
-
   //update state mean and covariance matrix
   x_ = x_ + K * z_diff;
   P_ = P_ - K*S*K.transpose();
 
-
+  //calculate NIS
+  double NIS_Value = z_diff.transpose() * S.inverse() * z_diff;
+  J_timestep_ += 1;
+  NIS_LIDAR_FILE_ << NIS_Value << "\t" << J_timestep_ << endl;
 
 }
 
